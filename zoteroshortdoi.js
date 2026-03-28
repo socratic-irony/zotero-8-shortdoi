@@ -1,21 +1,3 @@
-// Startup -- load Zotero and constants
-if (typeof Zotero === 'undefined') {
-    Zotero = {};
-}
-
-//const zotDOI_is7 = Zotero.platformMajorVersion >= 102;
-
-function _create(doc, name) {
-    const elt =
-        Zotero.platformMajorVersion >= 102
-            ? doc.createXULElement(name)
-            : doc.createElementNS(
-                "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul",
-                name
-            );
-    return elt;
-}
-
 ShortDOI = {
     id: null,
     version: null,
@@ -47,7 +29,7 @@ ShortDOI = {
         this.rootURI = rootURI;
 
         // Register the callback in Zotero as an item observer
-        notifierID = Zotero.Notifier.registerObserver(
+        this.notifierID = Zotero.Notifier.registerObserver(
             ShortDOI.notifierCallback,
             ["item"]
         );
@@ -56,20 +38,16 @@ ShortDOI = {
     // Overlay management
 
     addToWindow(window) {
-        log("Updating window")
+        ShortDOI.log("Updating window")
 
         let doc = window.document;
-
-        // createElementNS() necessary in Zotero 6; createElement() defaults to HTML in Zotero 7
-        //let HTML_NS = "http://www.w3.org/1999/xhtml";
-        //let XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 
         let stringBundle = Services.strings.createBundle(
             "chrome://zoteroshortdoi/locale/zoteroshortdoi.properties"
         );
 
         // Item menu
-        let itemmenu = _create(doc, "menu");
+        let itemmenu = doc.createXULElement("menu");
         itemmenu.id = "zotero-itemmenu-shortdoi-menu";
         itemmenu.setAttribute("class", "menu-iconic");
         //itemmenu.setAttribute('image', 'xxx');
@@ -78,10 +56,10 @@ ShortDOI = {
             stringBundle.GetStringFromName("shortdoi-menu-label")
         );
 
-        let itemmenupopup = _create(doc, "menupopup");
+        let itemmenupopup = doc.createXULElement("menupopup");
         itemmenupopup.id = "zotero-itemmenu-shortdoi-menupopup";
 
-        let updateShort = _create(doc, "menuitem");
+        let updateShort = doc.createXULElement("menuitem");
         updateShort.id = "zotero-itemmenu-shortdoi-short";
         updateShort.setAttribute(
             "label",
@@ -91,7 +69,7 @@ ShortDOI = {
             ShortDOI.updateSelectedItems("short");
         });
 
-        let updateLong = _create(doc, "menuitem");
+        let updateLong = doc.createXULElement("menuitem");
         updateLong.id = "zotero-itemmenu-shortdoi-long";
         updateLong.setAttribute(
             "label",
@@ -101,7 +79,7 @@ ShortDOI = {
             ShortDOI.updateSelectedItems("long");
         });
 
-        let updateCheck = _create(doc, "menuitem");
+        let updateCheck = doc.createXULElement("menuitem");
         updateCheck.id = "zotero-itemmenu-shortdoi-check";
         updateCheck.setAttribute(
             "label",
@@ -119,36 +97,19 @@ ShortDOI = {
         this.storeAddedElement(itemmenu);
 
         // Tools menu
-        // Preferences
-        // As they are now in the main Zotero preferences in Zotero 7, this is only for Zotero 6
-        if (!(Zotero.platformMajorVersion >= 102)) {
-            let menuitem = _create(doc, "menuitem");
-            menuitem.id = "menu_Tools-shortdoi-preferences";
-            menuitem.setAttribute(
-                "label",
-                stringBundle.GetStringFromName("shortdoi-preferences-label")
-            );
-            menuitem.addEventListener("command", () => {
-                ShortDOI.openPreferenceWindow();
-            });
-            doc.getElementById("menu_ToolsPopup").appendChild(menuitem);
-            this.storeAddedElement(menuitem);
-        }
-
-        // Auto-retrieve settings
-        let submenu = _create(doc, "menu");
+        let submenu = doc.createXULElement("menu");
         submenu.id = "menu_Tools-shortdoi-menu";
         submenu.setAttribute(
             "label",
             stringBundle.GetStringFromName("shortdoi-autoretrieve-label")
         );
-        let submenupopup = _create(doc, "menupopup");
+        let submenupopup = doc.createXULElement("menupopup");
         submenupopup.id = "menu_Tools-shortdoi-menu-popup";
         submenupopup.addEventListener("popupshowing", () => {
             ShortDOI.setCheck();
         });
 
-        let itemShort = _create(doc, "menuitem");
+        let itemShort = doc.createXULElement("menuitem");
         itemShort.id = "menu_Tools-shortdoi-menu-popup-short";
         itemShort.setAttribute("type", "checkbox");
         itemShort.setAttribute(
@@ -159,7 +120,7 @@ ShortDOI = {
             ShortDOI.changePref("short");
         });
 
-        let itemLong = _create(doc, "menuitem");
+        let itemLong = doc.createXULElement("menuitem");
         itemLong.id = "menu_Tools-shortdoi-menu-popup-long";
         itemLong.setAttribute("type", "checkbox");
         itemLong.setAttribute(
@@ -170,7 +131,7 @@ ShortDOI = {
             ShortDOI.changePref("long");
         });
 
-        let itemCheck = _create(doc, "menuitem");
+        let itemCheck = doc.createXULElement("menuitem");
         itemCheck.id = "menu_Tools-shortdoi-menu-popup-check";
         itemCheck.setAttribute("type", "checkbox");
         itemCheck.setAttribute(
@@ -181,7 +142,7 @@ ShortDOI = {
             ShortDOI.changePref("check");
         });
 
-        let itemNone = _create(doc, "menuitem");
+        let itemNone = doc.createXULElement("menuitem");
         itemNone.id = "menu_Tools-shortdoi-menu-popup-none";
         itemNone.setAttribute("type", "checkbox");
         itemNone.setAttribute(
@@ -200,18 +161,6 @@ ShortDOI = {
         doc.getElementById("menu_ToolsPopup").appendChild(submenu);
         this.storeAddedElement(submenu);
 
-        // Use strings from make-it-red.ftl (Fluent) in Zotero 7
-        /*if (is7) {
-         window.MozXULElement.insertFTLIfNeeded("zoteroshortdoi.ftl");
-         }
-         // Use strings from make-it-red.properties (legacy properties format) in Zotero 6
-         else {
-         let stringBundle = Services.strings.createBundle(
-         'chrome://zotero-shortdoi/locale/zoteroshortdoi.properties'
-         );
-         doc.getElementById('menu_Tools-shortdoi-preferences')
-         .setAttribute('label', stringBundle.GetStringFromName('makeItGreenInstead.label'));
-         }*/
     },
 
     addToAllWindows() {
@@ -233,11 +182,8 @@ ShortDOI = {
         var doc = window.document;
         // Remove all elements added to DOM
         for (let id of this.addedElementIDs) {
-            // ?. (null coalescing operator) not available in Zotero 6
-            let elem = doc.getElementById(id);
-            if (elem) elem.remove();
+            doc.getElementById(id)?.remove();
         }
-        //doc.querySelector('[href="zoteroshortdoi.ftl"]').remove();
     },
 
     removeFromAllWindows() {
@@ -298,25 +244,6 @@ ShortDOI = {
     // *********** Change the checkbox, topref
     changePref(option) {
         ShortDOI.setPref("autoretrieve", option);
-    },
-
-    /**
-     * Open shortdoi preference window
-     */
-    openPreferenceWindow(paneID, action) {
-        log("Opening pref window for DOI");
-
-        let window = Zotero.getMainWindow();
-        var io = { pane: paneID, action: action };
-        window.openDialog(
-            "chrome://zoteroshortdoi/content/options.xul",
-            "shortdoi-pref",
-            "chrome,titlebar,toolbar,centerscreen" +
-                Zotero.Prefs.get("browser.preferences.instantApply", true)
-                ? "dialog=no"
-                : "modal",
-            io
-        );
     },
 
     resetState(operation) {
@@ -526,10 +453,7 @@ ShortDOI.updateItems = function (items, operation) {
             icon
         );
     }
-    let iconPath =
-        Zotero.platformMajorVersion >= 102
-            ? this.rootURI + "skin/doi"
-            : "chrome://zoteroshortdoi/skin/doi";
+    let iconPath = this.rootURI + "skin/doi";
     var doiIcon = iconPath + (Zotero.hiDPI ? "@2x" : "") + ".png";
     ShortDOI.progressWindow.progress = new ShortDOI.progressWindow.ItemProgress(
         doiIcon,
@@ -775,16 +699,6 @@ ShortDOI.invalidate = function (item, operation) {
     }
     ShortDOI.updateNextItem(operation);
 };
-
-if (typeof window !== "undefined") {
-    window.addEventListener(
-        "load",
-        function (e) {
-            ShortDOI.init();
-        },
-        false
-    );
-}
 
 ShortDOI.crossrefLookup = function (item, operation) {
     var crossrefOpenURL =
